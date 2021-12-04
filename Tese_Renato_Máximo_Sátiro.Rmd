@@ -1,0 +1,249 @@
+---
+title: "Acesso à Justiça - Regressão Linear Múltipla"
+author: "Ph.D Student Renato Máximo Sátiro"
+date: "30/10/2021"
+output:
+  html_document: default
+  pdf_document: default
+  word_document: default
+---
+---
+title: "Roteiro de Análise Estatística - Regressão com Dados em Painel"
+author: "Ph.D Student Renato Máximo Sátiro"
+output:
+  word_document: default
+  html_document:
+    df_print: paged
+---
+
+# Universidade Federal de Goiás - UFG
+## Faculdade de Administração, Ciências Contábeis e Ciências Econômicas - FACE/UFG
+## Programa de Pós Graduação em Administração - PPGADM/UFG
+### Doutorado em Administração
+
+# Roteiro de Análise - Regressão Linear Múltipla - RLM
+### Carregando os dados
+```{r message=FALSE, warning=FALSE, paged.print=TRUE}
+library(readxl)
+base <- readxl::read_excel ("C:/Users/casas bahia/Desktop/Doutorado/Artigos/Acesso Geral/IAJ_Base_Tribunais.2.xls")
+```
+
+
+# Retirando a notação científica
+```{r message=FALSE, warning=FALSE}
+options (scipen = 1000)
+```
+
+
+### Estatística Descritiva
+```{r message=FALSE, warning=FALSE}
+summary(base, digits = 2)
+```
+
+
+# Instalando e habilitando os pacotes utilizados
+```{r message=FALSE, warning=FALSE}
+pacotes <- c("plotly","tidyverse","ggrepel","fastDummies","knitr","kableExtra",
+             "splines","reshape2","PerformanceAnalytics","metan","correlation",
+             "see","ggraph","nortest","rgl","car","olsrr","jtools","ggstance",
+             "magick","cowplot","beepr","Rcpp")
+
+if(sum(as.numeric(!pacotes %in% installed.packages())) != 0){
+  instalador <- pacotes[!pacotes %in% installed.packages()]
+  for(i in 1:length(instalador)) {
+    install.packages(instalador, dependencies = T)
+    break()}
+  sapply(pacotes, require, character = T) 
+} else {
+  sapply(pacotes, require, character = T) 
+}
+```
+
+
+# Construindo as correlações
+```{r message=FALSE, warning=FALSE}
+library(readxl)
+base2 <- read_excel("C:/Users/casas bahia/Desktop/Doutorado/Artigos/Acesso Geral/base2.xlsx")
+
+base2 %>%
+  corr_plot(shape.point = 21,
+            col.point = "black",
+            fill.point = "#FDE725FF",
+            size.point = 2,
+            alpha.point = 0.6,
+            maxsize = 4,
+            minsize = 2,
+            smooth = TRUE,
+            col.smooth = "black",
+            col.sign = "#440154FF",
+            upper = "corr",
+            lower = "scatter",
+            diag.type = "density",
+            col.diag = "#440154FF",
+            pan.spacing = 0,
+            lab.position = "bl")
+
+```
+
+# Estimação do modelo OLS linear
+```{r message=FALSE, warning=FALSE}
+modelo_linear <- lm (formula = base$Casos_novos_por_100kh_1GJETR ~base$dinf1_mag+base$dinf2_mag+base$f4a+base$tfauxt+base$h2+base$pib+base$gt+base$Taxa_agua_canalizada+base$Taxa_nasc_vivos_maes10a19+base$Analfabetismo_maiorde15+base$DAI+base$DPI+base$Coef_Gini+base$Taxa_escolarizacao+base$Taxa_mulher+base$Idade_50emais+base$Cor_Raca_Nao_Branca+base$Tempo_medio_decisao+base$Taxa_varas_por_pop+base$Taxa_mag_por_pop+base$k,data = base)
+
+summary(modelo_linear, digits = 2)
+```
+
+# Estimação do modelo OLS linear (método stepwise)
+```{r message=FALSE, warning=FALSE}
+modelo_step_linear <- step(lm(formula = base$Casos_novos_por_100kh_1GJETR ~ base$dinf1_mag + base$dinf2_mag+base$f4a+base$tfauxt+base$h2+base$pib+base$gt+base$Taxa_agua_canalizada+base$Taxa_nasc_vivos_maes10a19+base$Analfabetismo_maiorde15+base$DAI+base$DPI+base$Coef_Gini+base$Taxa_escolarizacao+base$Taxa_mulher+base$Idade_50emais+base$Cor_Raca_Nao_Branca+base$Tempo_medio_decisao+base$Taxa_varas_por_pop+base$Taxa_mag_por_pop+base$k,data = base))
+
+summary(modelo_step_linear)
+```
+
+
+# Construindo o gráfico dos Resultados
+```{r message=FALSE, warning=FALSE}
+library(stargazer)
+stargazer(modelo_linear, modelo_step_linear, type = "text", title = "Resultados da Regressão Linear Múltipla", dep.var.labels = "Casos novos por 100 mil habitantes", digits = 2, out = "Modelo.html")
+```
+
+
+# Outras maneiras de apresentar os outputs do modelo
+```{r message=FALSE, warning=FALSE}
+summ(modelo_linear, confint = F, digits = 2, ci.width = .95)
+```
+
+# Outras maneiras de apresentar os outputs do modelo
+```{r message=FALSE, warning=FALSE}
+library(flextable)
+export_summs(modelo_linear, scale = F, digits = 4)
+```
+
+
+# Plotando os Resultados por Ramo Judiciário (agregado)
+```{r message=FALSE, warning=FALSE}
+ggplotly(
+ggplot(base, aes(x = base$dinf1_mag + base$dinf2_mag + base$f4a+ 
+base$tfauxt+base$h2+base$pib+base$gt+base$Taxa_agua_canalizada+                   base$Taxa_nasc_vivos_maes10a19+base$Analfabetismo_maiorde15+
+base$DAI+base$DPI+base$Coef_Gini+base$Taxa_escolarizacao+
+base$Taxa_mulher+base$Idade_50emais+base$Cor_Raca_Nao_Branca+
+base$Tempo_medio_decisao+base$Taxa_varas_por_pop+
+base$Taxa_mag_por_pop+base$k,
+y = base$Casos_novos_por_100kh_1GJETR, color = base$especialidade, shape = base$especialidade)) +
+    geom_point(size = 2) +
+    geom_smooth(method = "rlm", se = TRUE) +
+    xlab("") +
+    ylab("Casos novos") +
+    scale_colour_viridis_d() +
+    theme_classic()
+)
+```
+
+# Plotando os Resultados por Ramo Judiciário (individual)
+```{r message=FALSE, warning=FALSE}
+ggplotly(
+ggplot(base, aes(x = base$dinf1_mag + base$dinf2_mag + base$f4a+ 
+base$tfauxt+base$h2+base$pib+base$gt+base$Taxa_agua_canalizada+
+base$Taxa_nasc_vivos_maes10a19+base$Analfabetismo_maiorde15+
+base$DAI+base$DPI+base$Coef_Gini+base$Taxa_escolarizacao+
+base$Taxa_mulher+base$Idade_50emais+base$Cor_Raca_Nao_Branca+
+base$Tempo_medio_decisao+base$Taxa_varas_por_pop+
+base$Taxa_mag_por_pop+base$k,
+y = base$Casos_novos_por_100kh_1GJETR, color = base$Tribunal...1, shape = base$Tribunal...1)) +
+    geom_point(size = 2) +
+    geom_smooth(method = "rlm", se = TRUE) +
+    xlab("") +
+    ylab("Casos novos") +
+    scale_colour_viridis_d() +
+    theme_classic()
+)
+```
+
+
+# TESTE DE VERIFICAÇÃO DA ADERÊCIA DOS RESÍDUOS À NORMALIDADE - SHAPIRO-FRANCIA     
+```{r message=FALSE, warning=FALSE}
+shapiro.test(modelo_linear$residuals)
+```
+
+
+# Histograma dos resíduos do modelo OLS linear
+```{r message=FALSE, warning=FALSE}
+base %>%
+  mutate(residuos = modelo_linear$residuals) %>%
+  ggplot(aes(x = residuos)) +
+  geom_histogram(aes(y = ..density..), 
+                 color = "grey50", 
+                 fill = "grey90", 
+                 bins = 30,
+                 alpha = 0.6) +
+  stat_function(fun = dnorm, 
+                args = list(mean = mean(modelo_linear$residuals),
+                            sd = sd(modelo_linear$residuals)),
+                aes(color = "Curva Normal Teórica"),
+                size = 2) +
+  scale_color_manual("Legenda:",
+                     values = "#FDE725FF") +
+  labs(x = "Resíduos",
+       y = "Frequência") +
+  theme(panel.background = element_rect("white"),
+        panel.grid = element_line("grey95"),
+        panel.border = element_rect(NA),
+        legend.position = "bottom")
+```
+
+# Plotando os resíuos do modelo
+```{r message=FALSE, warning=FALSE}
+base %>%
+  mutate(residuos = modelo_linear$residuals) %>%
+  ggplot(aes(x = residuos)) +
+  geom_histogram(color = "white", 
+                 fill = "#440154FF", 
+                 bins = 30,
+                 alpha = 0.6) +
+  labs(x = "Resíduos",
+       y = "Frequência") + 
+  theme_bw()
+```
+
+# Acrescentando uma curva normal teórica para compação entre as distribuições
+```{r message=FALSE, warning=FALSE}
+base %>%
+  mutate(residuos = modelo_linear$residuals) %>%
+  ggplot(aes(x = residuos)) +
+  geom_histogram(aes(y = ..density..), 
+                 color = "white", 
+                 fill = "#440154FF", 
+                 bins = 30,
+                 alpha = 0.6) +
+  stat_function(fun = dnorm, 
+                args = list(mean = mean(modelo_linear$residuals),
+                            sd = sd(modelo_linear$residuals)),
+                size = 2, color = "grey30") +
+  scale_color_manual(values = "grey50") +
+  labs(x = "Resíduos",
+       y = "Frequência") +
+  theme_bw()
+```
+
+# DIAGNÓSTICO DE MULTICOLINEARIDADE EM MODELOS DE REGRESSÃO 
+## Teste VIF (Variance Inflation Factor e Tolerance)
+```{r message=FALSE, warning=FALSE}
+ols_vif_tol(modelo_linear)
+```
+
+
+# DIAGNÓSTICO DE HETEROCEDASTICIDADE EM MODELOS DE REGRESSÃO
+## Teste de Breusch-Pagan para diagnóstico de heterocedasticidade
+```{r message=FALSE, warning=FALSE}
+ols_test_breusch_pagan(modelo_linear)
+```
+
+#H0 do teste: ausência de heterocedasticidade.
+#H1 do teste: heterocedasticidade
+
+# DIAGNÓSTICO DE AUTOCORRELAÇÃO EM MODELOS DE REGRESSÃO
+## Teste de Durbin Watson
+```{r message=FALSE, warning=FALSE}
+durbinWatsonTest(modelo_linear)
+```
+
+################################### FIM ###################################
